@@ -1,0 +1,21 @@
+name: "Publish NuGet Package"
+description: "Will build and publish a NuGet package"
+inputs:
+  project:
+    description: 'The path to the csproj file for the NuGet package'
+    required: true
+  nuget-key:
+    description: 'The NuGet API key'
+    required: true
+runs:
+  using: "composite"
+  steps: 
+    - name: Build
+      run: dotnet build -c Release ${{ inputs.project }}
+      shell: bash
+    - name: Pack
+      run: dotnet pack --no-build -c Release ${{ inputs.project }} -o .
+      shell: bash
+    - name: Push
+      run: dotnet nuget push *.nupkg -s https://api.nuget.org/v3/index.json -k ${{ inputs.nuget-key }} --skip-duplicate -n
+      shell: bash
