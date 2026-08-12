@@ -2,7 +2,8 @@
 
 Builds, packs and pushes a NuGet package to nuget.org using
 [Trusted Publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing) (OIDC).
-No API key is stored anywhere - nuget.org issues a short-lived key at publish time.
+No long-lived API key is stored in repository or organization secrets - nuget.org issues a
+short-lived key at publish time, valid for one hour.
 
 ## Usage
 
@@ -49,7 +50,11 @@ packages (**Package Owner**). Policies match on repository owner + repository + 
 | Repository Owner | `Likvido`                               |
 | Repository       | the repository name                     |
 | Workflow File    | `nuget.yml` (file name only, no path)   |
-| Environment      | blank                                   |
+| Environment      | blank - see below                       |
+
+Leave **Environment** blank unless the calling job sets `environment:`, in which case the policy
+must carry that exact environment name or the token exchange will not match. No Likvido publishing
+workflow uses an environment today.
 
 The `nuget-user` input must be the same account as the policy's **Package Owner**.
 
