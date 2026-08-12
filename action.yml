@@ -1,21 +1,26 @@
 name: "Publish NuGet Package"
-description: "Will build and publish a NuGet package"
+description: "Will build and publish a NuGet package using Trusted Publishing (OIDC)"
 inputs:
   project:
     description: 'The path to the csproj file for the NuGet package'
     required: true
-  nuget-key:
-    description: 'The NuGet API key'
+  nuget-user:
+    description: 'The nuget.org account that owns the packages - the "Package Owner" on the Trusted Publishing policy'
     required: true
 runs:
   using: "composite"
-  steps: 
+  steps:
     - name: Build
       run: dotnet build -c Release ${{ inputs.project }}
       shell: bash
     - name: Pack
       run: dotnet pack --no-build -c Release ${{ inputs.project }} -o .
       shell: bash
+    - name: NuGet login
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: ${{ inputs.nuget-user }}
     - name: Push
-      run: dotnet nuget push *.nupkg -s https://api.nuget.org/v3/index.json -k ${{ inputs.nuget-key }} --skip-duplicate -n
+      run: dotnet nuget push "*.nupkg" -s https://api.nuget.org/v3/index.json -k ${{ steps.login.outputs.NUGET_API_KEY }} --skip-duplicate -n
       shell: bash
