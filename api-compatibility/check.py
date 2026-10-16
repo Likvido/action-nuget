@@ -17,7 +17,8 @@ import time
 import urllib.error
 import urllib.request
 
-REGISTRATION = "https://api.nuget.org/v3/registration5-gz-semver2/{id}/index.json"
+NUGET_API = "https://api.nuget.org/"
+REGISTRATION = NUGET_API + "v3/registration5-gz-semver2/{id}/index.json"
 
 # Breaking changes only: CP0xxx (API compatibility) and PKVxxx (package validation). CP1xxx says a reference
 # could not be resolved, which is about the build, not the API.
@@ -32,7 +33,9 @@ class NuGetUnreadable(Exception):
 
 
 def fetch_json(url):
-    """The JSON at url, None on 404. Retries other failures three times."""
+    """The JSON at url, None on 404. Retries other failures three times. Only nuget.org's API is read."""
+    if not url.startswith(NUGET_API):
+        raise NuGetUnreadable(f"{url} is not on {NUGET_API}")
     for attempt in range(3):
         try:
             request = urllib.request.Request(url, headers={"Accept-Encoding": "gzip", "User-Agent": "likvido-action-nuget"})
