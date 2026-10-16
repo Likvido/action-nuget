@@ -23,8 +23,8 @@ REGISTRATION = "https://api.nuget.org/v3/registration5-gz-semver2/{id}/index.jso
 # could not be resolved, which is about the build, not the API.
 BREAK = re.compile(r"\berror ((?:CP0\d{3})|(?:PKV\d+)): (.*?)(?: \[[^\]\[]*\])?\s*$")
 
-# GitHub keeps up to 10 error annotations per step.
-MAX_ANNOTATIONS = 9
+# GitHub keeps up to 10 error annotations per step; one is left for the runner's own failure line.
+MAX_ERRORS = 9
 
 
 class NuGetUnreadable(Exception):
@@ -128,14 +128,15 @@ def main():
     out_dir = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "api-compatibility")
     summary = ["## API compatibility", ""]
     failed = False
-    annotations = 0
-    total = 0
+    # Error annotations are written at the end, the breaks first, so none is lost to GitHub's limit.
+    breaks_found = []
+    errors = []
 
     for project in projects:
         code, output = run(["dotnet", "msbuild", project, "-getProperty:PackageId", "-p:Configuration=Release", "-nologo"])
         package_id = output.strip().splitlines()[-1].strip() if code == 0 and output.strip() else ""
         if code != 0 or not re.fullmatch(r"[A-Za-z0-9._-]+", package_id):
-            annotate("error", "api-compatibility", f"The package id of {project} could not be read, so its API was not compared.")
+            errors.append(("api-compatibility", f"The package id of {project} could not be read, so its API was not compared."))
             summary.append(f"- `{project}`: its package id could not be read, so its API was not compared.")
             failed = True
             continue
@@ -143,7 +144,7 @@ def main():
         try:
             version = baseline(package_id)
         except NuGetUnreadable as error:
-            annotate("error", "api-compatibility", f"nuget.org could not be read for {package_id}, so its API was not compared: {error}")
+            errors.append(("api-compatibility", f"nuget.org could not be read for {package_id}, so its API was not compared: {error}"))
             summary.append(f"- **{package_id}**: nuget.org could not be read, so its API was not compared.")
             failed = True
             continue
@@ -169,24 +170,24 @@ def main():
 
         if breaks:
             failed = True
-            total += len(breaks)
-            for diagnostic in breaks:
-                if annotations < MAX_ANNOTATIONS:
-                    annotate("error", f"API break in {package_id}", diagnostic)
-                    annotations += 1
+            breaks_found += [(f"API break in {package_id}", diagnostic) for diagnostic in breaks]
             summary.append(f"- **{package_id}**: its public API breaks against {version} on nuget.org ({len(breaks)} {'diagnostic' if len(breaks) == 1 else 'diagnostics'}):")
             summary.append("")
             summary.append(fence(breaks))
             summary.append("")
         elif code != 0:
             failed = True
-            annotate("error", "api-compatibility", f"{package_id} did not pack, so its API was not compared; see the log.")
+            errors.append(("api-compatibility", f"{package_id} did not pack, so its API was not compared; see the log."))
             summary.append(f"- **{package_id}**: it did not pack, so its API was not compared; see the log.")
         else:
             summary.append(f"- **{package_id}**: no breaking change against {version} on nuget.org.")
 
-    if total > annotations:
-        annotate("error", "api-compatibility", "There are more breaking changes than are shown as annotations; the job summary lists them all.")
+    annotations = breaks_found + errors
+    shown = annotations if len(annotations) <= MAX_ERRORS else annotations[:MAX_ERRORS - 1]
+    for title, message in shown:
+        annotate("error", title, message)
+    if len(shown) < len(annotations):
+        annotate("error", "api-compatibility", "There are more errors than are shown as annotations; the job summary lists them all.")
 
     if failed:
         summary += ["", "A breaking change needs a new major version in `version.props`, which a person merges, or the old API kept. "
