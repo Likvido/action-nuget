@@ -96,9 +96,10 @@ def annotate(level, title, message):
 
 
 def show_output(text):
-    """Prints a tool's output indented, with workflow commands off, so no line of it is read as a command or matched
-    by a problem matcher into a second annotation."""
+    """Prints a tool's output indented, with workflow commands off, so no line of it is read as a command."""
     token = secrets.token_hex(16)
+    # setup-dotnet's problem matcher would read each error line again, as an annotation of its own.
+    print("::remove-matcher owner=csc::")
     print(f"::stop-commands::{token}")
     for line in text.splitlines():
         print("  " + line)
