@@ -73,9 +73,8 @@ should not be used for new workflows.
 
 `api-compatibility` is a second action in this repository. It packs each project with .NET
 [package validation](https://learn.microsoft.com/en-us/dotnet/fundamentals/apicompat/package-validation/overview)
-and compares its public API with the newest version of its package listed on nuget.org (the newest
-stable one, or the newest pre-release when there is no stable one). The version in the pull request
-plays no part, so the result is the same before and after a version raise.
+and compares its public API with the newest version of its package listed on nuget.org. The version
+in the pull request plays no part, so the result is the same before and after a version raise.
 
 - No breaking change: the job succeeds.
 - A breaking change (a `CP0xxx` or `PKVxxx` diagnostic): the job fails, with each diagnostic as an

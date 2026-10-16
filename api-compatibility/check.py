@@ -64,7 +64,7 @@ def version_key(text):
 
 
 def baseline(package_id):
-    """The newest listed stable version of the package on nuget.org, else its newest listed pre-release, else None."""
+    """The newest listed version of the package on nuget.org, pre-releases included, or None."""
     index = fetch_json(REGISTRATION.format(id=package_id.lower()))
     if index is None:
         return None
@@ -77,10 +77,7 @@ def baseline(package_id):
             entry = item.get("catalogEntry", {})
             if entry.get("listed", True):
                 listed.append(entry["version"])
-    if not listed:
-        return None
-    stable = [v for v in listed if "-" not in v.split("+", 1)[0]]
-    return max(stable or listed, key=version_key)
+    return max(listed, key=version_key) if listed else None
 
 
 def escape_data(text):
