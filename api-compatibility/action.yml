@@ -1,0 +1,14 @@
+name: "API compatibility"
+description: "Fails when a library's public API breaks against the newest version of its package listed on nuget.org"
+inputs:
+  projects:
+    description: 'The csproj files the library publishes, one per line: the project inputs of its nuget.yml'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Compare the public API with nuget.org
+      run: python3 -I "$GITHUB_ACTION_PATH/check.py"
+      shell: bash
+      env:
+        PROJECTS: ${{ inputs.projects }}

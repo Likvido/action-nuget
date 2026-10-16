@@ -62,11 +62,64 @@ The `nuget-user` input must be the same account as the policy's **Package Owner*
 
 | Version | Authentication                                       |
 | ------- | ---------------------------------------------------- |
+| `v3`    | As `v2`, plus the `api-compatibility` action          |
 | `v2`    | Trusted Publishing (OIDC) via `nuget-user`            |
 | `v1`    | Long-lived API key via `nuget-key` - **deprecated**   |
 
 `v1` remains available while repositories migrate, but it depends on a long-lived API key and
 should not be used for new workflows.
+
+## API compatibility check
+
+`api-compatibility` is a second action in this repository. It packs each project with .NET
+[package validation](https://learn.microsoft.com/en-us/dotnet/fundamentals/apicompat/package-validation/overview)
+and compares its public API with the newest version of its package listed on nuget.org. The version
+in the pull request plays no part, so the result is the same before and after a version raise.
+
+- No breaking change: the job succeeds.
+- A breaking change (a `CP0xxx` or `PKVxxx` diagnostic): the job fails, with each diagnostic as an
+  annotation and all of them in the job summary.
+- A package with no listed version on nuget.org: the job succeeds and says there was nothing to
+  compare with.
+- A project that does not pack, or nuget.org that cannot be read: the job fails without a
+  diagnostic.
+
+Run it on `pull_request`, in a job named `api-compatibility`, with the same project paths as
+`nuget.yml`:
+
+```yaml
+name: API compatibility
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  api-compatibility:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.x
+
+      - name: Compare the public API with nuget.org
+        uses: likvido/action-nuget/api-compatibility@v3
+        with:
+          projects: |
+            src/Likvido.Project/Likvido.Project.csproj
+```
+
+A breaking change needs a new major version, which a person merges, or the old API kept. The check
+stays failed until that major is on nuget.org, since that is what it compares with.
 
 # Releasing new version
 
